@@ -1,6 +1,5 @@
 from fastapi import FastAPI, File, UploadFile
 from ultralytics import YOLO
-import cv2
 import numpy as np
 from io import BytesIO
 from PIL import Image
@@ -8,7 +7,7 @@ from PIL import Image
 app = FastAPI()
 model = YOLO("yolov8n.pt")
 
-@app.post("/predict")
+@app.post("/classify")
 async def predict(file: UploadFile = File(...)):
     # Read image file
     image_data = await file.read()
@@ -18,6 +17,10 @@ async def predict(file: UploadFile = File(...)):
     # Run inference
     results = model(image)
 
-    # Process results (example: return bounding boxes as JSON)
-    boxes = results[0].boxes.xyxy.cpu().numpy().tolist()  # Extract bounding boxes
-    return {"boxes": boxes}
+    label = results[0].names[int(results[0].boxes.cls[0])] if results[0].boxes else "Unknown"
+    confidence = results[0].boxes.conf[0] if results[0].boxes else 0.0
+    confidence = int(confidence * 100)
+    confidence = min(max(confidence, 0), 100)
+
+    # Return label and confidence
+    return {"label": label, "confidence": confidence}
